@@ -17,22 +17,22 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-class US_Validate{
+abstract class US_Validate {
 	private $_passed = false,
-			$_errors = array(),
+			$_errors = [],
 			$_db = null,
-			$_ruleList = array();
+			$_ruleList = [];
 
 	public function __construct($rules=null) {
 		$this->_db = DB::getInstance();
-		if ($rules) {
+		if ($rules || is_array($rules)) {
 			$this->_ruleList = $this->stdRules($rules);
 		}
 	}
 
 	public function stdRules($rules) {
         global $T;
-		$newRuleList = array();
+		$newRuleList = [];
 		foreach ($rules as $rulename => $rule) {
 			$newrule = [];
 			if (is_numeric($rulename) && !is_array($rule))
@@ -78,8 +78,8 @@ class US_Validate{
         return array_keys($this->_ruleList);
     }
 
-	public function describe($fields=array(), $ruleList=array(), $rulesToDescribe=array()) {
-		$rtn = array();
+	public function describe($fields=[], $ruleList=[], $rulesToDescribe=[]) {
+		$rtn = [];
 		if (!$ruleList) $ruleList = $this->_ruleList;
 		if (!$fields) $fields = array_keys($ruleList);
 		foreach ((array)$fields as $f) {
@@ -140,12 +140,15 @@ class US_Validate{
 		return implode($rtn, ' &nbsp;-&nbsp; ');
 	}
 
-	public function check($source, $items = array()) {
+	public function check($source, $items=[]) {
+        #dbg("Validator::check(): Entering. Source follows");
+        #pre_r($source);
         global $T; // table prefix map
 		$this->_errors = [];
 		if (!$items && $this->_ruleList) {
             $items = $this->_ruleList;
         }
+        #dbg("ITEMS");
 		#var_dump($items);
 		foreach ($items as $item => $rules) {
             #dbg("ITEM: ".$item);
@@ -168,9 +171,9 @@ class US_Validate{
 					continue; // these aren't really "rules" per se
                 #dbg("Validate::check(): after continue<br />\n");
                 #dbg("Validate::check(): rule=$rule, rule_value=$rule_value, value='$value'<br />\n");
-				if ($rule === 'required') {
+				if ($rule == 'required') {
                     if ($rule_value && empty($value)) {
-                        #dbg("ERROR - required<br />\n");
+                        #dbg("ERROR - required item=$item, display=$display");
     					$this->addError([lang('VALID_ERR_REQUIRED', $display),$item]);
                     } elseif ($rule_value && isset($value['error']) && $value['error'] == UPLOAD_ERR_NO_FILE) {
                         $this->addError([lang('VALID_ERR_UPLOAD_REQUIRED', $display)]);
@@ -206,6 +209,15 @@ class US_Validate{
 							}
 							break;
 
+						case 'in_list':
+							if (!in_array($value, (array)$rule_value)) {
+								if (!$display_desc = @$rules['in_list_display']) {
+    								$display_desc = implode(", ", $rule_value);
+                                }
+								$this->addError([lang('VALID_ERR_MUST_BE_IN_LIST', [$display_desc, $display]),$item]);
+							}
+							break;
+
 						case 'matches':
 							if ($value != $source[$rule_value]) {
 								$match = $items[$rule_value]['display'];
@@ -215,7 +227,7 @@ class US_Validate{
 
 						case 'unique':
 						case 'unique_add':
-							$check = $this->_db->get($rule_value, array($item, '=', $value));
+							$check = $this->_db->get($rule_value, [$item, '=', $value]);
 							if ($check->count()) {
 								$this->addError([lang('VALID_ERR_NOT_UNIQUE', $display),$item]);
 							}
@@ -225,8 +237,11 @@ class US_Validate{
 							if (isset($rules['update_id'])) {
 								$table = $rule_value;
 								$id = $rules['update_id'];
-							} else {
+							} elseif (strstr(",", $rule_value)) {
 								list($table, $id) = explode(',', $rule_value);
+                            } else {
+                                $this->addError(["DEV ERROR: update_id not specified for $display", $item]);
+                                break;
                             }
                             if (@$T[$table]) {
 								$table = $T[$table];
@@ -321,7 +336,7 @@ class US_Validate{
 		return $html;
 	}
 
-	public function stackErrorMessages($errs=array()) {
+	public function stackErrorMessages($errs=[]) {
         # errors in $this->_errors contain more than just the string so must iterate
 		foreach ($this->_errors as $err)
 			$errs[] = $err[0];
