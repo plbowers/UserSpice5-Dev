@@ -1,5 +1,5 @@
 <?php
-class US_FormTab_Contents extends Form {
+class US_FormTab_Contents extends FormBase {
     public $elementList = [
         'openTab', 'Fields', 'closeTab',
     ];
@@ -10,7 +10,7 @@ class US_FormTab_Contents extends Form {
         </div> <!-- tab-content (id={TAB_ID}) -->
         ';
 }
-class US_FormTab_Pane extends Form {
+class US_FormTab_Pane extends FormBase {
     public $elementList = [
         'openTab', 'Fields', 'closeTab',
     ];
@@ -37,9 +37,9 @@ class US_FormTab_Pane extends Form {
         }
         return parent::handle1Opt($name, $val);
     }
-    public function setDefaults(&$fn, $mainFormObj) {
+    public function initElement(&$fn, $parent, $mainFormObj) {
         #dbg("FormTab_Pane::setDefaults($fn): Entering");
-        parent::setDefaults($fn, $mainFormObj);
+        parent::initElement($fn, $parent, $mainFormObj);
         if (!$this->getMacro('Tab_Id')) {
             $this->setTabId($fn);
         }
@@ -54,22 +54,22 @@ class US_FormTab_Pane extends Form {
         $this->MACRO_Tab_Id = $val;
     }
 }
-class US_Form_Form extends Form {
+class US_Form_Form extends FormBase {
     public $elementList = [
         'openForm', 'Fields', 'closeForm',
     ];
 }
-class US_Form_Col extends Form {
+class US_Form_Col extends FormBase {
     public $elementList = [
         'openCol', 'Fields', 'closeCol',
     ];
 }
-class US_Form_Row extends Form {
+class US_Form_Row extends FormBase {
     public $elementList = [
         'openRow', 'Fields', 'closeRow',
     ];
 }
-class US_Form_Panel extends Form {
+class US_Form_Panel extends FormBase {
     public $elementList = [
         // since we are changing the order, maybe just re-use title?
         'openPanel', 'Heading', 'openBody', 'Title', 'Fields', 'closeBody', 'Footing', 'closePanel',
@@ -110,7 +110,7 @@ class US_Form_Panel extends Form {
         }
     }
 }
-class US_Form_Well extends Form {
+class US_Form_Well extends FormBase {
     public $elementList = [
         // since we are changing the order, maybe just re-use title?
         'openWell', 'Title', 'Fields', 'closeWell',
