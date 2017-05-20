@@ -63,11 +63,13 @@ abstract class US_Element {
         $_deleteMe=false,
         $_deleteIfEmpty=false,
         $_dbTable=null, // used for form processing, editing the DB
-        $_mainFormObj=null,
+        #$_parentFormObj=null, # DO NOT UNCOMMENT THIS - CIRCULAR/RECURSIVE REFS KILLS PERFORMANCE
+        #$_mainFormObj=null, # DO NOT UNCOMMENT THIS - CIRCULAR/RECURSIVE REFS KILLS PERFORMANCE
         $errors=[],
         $successes=[];
     public $debug = -1;
     public $elementList = [];
+    public $elementRefs = []; // provides limited field/element lookups (circular/recursive references but of small areas of the tree)
     public $repElement = null; // name of repeating element from $elementList ('fields' for Form)
     public $repData = [];
     public $repMacroAliases = [];
@@ -88,8 +90,24 @@ abstract class US_Element {
         if (isset($GLOBALS['successes'])) {
             $this->successes = &$GLOBALS['successes'];
         }
+        $this->fixElementList($opts);
         if ($handleOpts) {
             $this->handleOpts($opts);
+        }
+    }
+    # These particular options must be applied early to fix the contents of
+    # $this->elementList so that we can choose the top Form object based on
+    # the presence/absence of the 'Header' element
+    public function fixElementList(&$opts) {
+        if (isset($opts['elements'])) {
+            $this->setElementList($opts['elements']);
+            unset($opts['elements']);
+        }
+        if ($del = preg_grep('/^exclude[-_]elements?$/', array_keys($opts))) {
+            foreach ($del as $d) {
+                $this->deleteElements($opts[$d]);
+                unset($opts[$d]);
+            }
         }
     }
     public function handleOpts($opts) {
@@ -110,9 +128,6 @@ abstract class US_Element {
     // parent::handle1Opt() to get the benefit of parent option handling
     public function handle1Opt($name, &$val) {
         switch (strtolower(str_replace('_', '', $name))) {
-            case 'elements':
-                $this->setElementList($val);
-                return true;
             case 'table':
             case 'dbtable':
                 $this->setDBTable($val);
@@ -129,9 +144,6 @@ abstract class US_Element {
                 return true;
             case 'deleteifempty':
                 $this->setDeleteIfEmpty($val);
-                return true;
-            case 'excludeelements':
-                $this->deleteElements($val);
                 return true;
             case 'errors':
                 $this->errors = &$val;
@@ -194,12 +206,15 @@ abstract class US_Element {
             $this->debug(2, '::getHTML(): calling getRepEmptyAlternate()');
             $html = $this->getRepEmptyAlternate();
         } else {
+            #dbg("Before loop in getHTML");
             foreach ((array)$elementList as $e) {
                 #dbg(substr($this->getHTMLElement($e, $opts), 0, 30));
                 $this->debug(2, "::getHTML(): e=$e, calling getHTMLElement()");
                 $html .= $this->getHTMLElement($e, $opts);
                 #echo "\n\n===$e (".get_class($this).")===\n\n$html\n\n";
             }
+            #dbg("After loop in getHTML");
+            #die();
         }
         $this->debug(3, htmlentities($html));
         $macros = $this->getMacros($html, $opts);
@@ -274,9 +289,15 @@ abstract class US_Element {
         $html = '';
         $this->debug(2, "::getHTMLRepElement(): Before Loop");
         $seq=1;
+#$dbgcnt=0;
+#dbg("this->class=".get_class($this));
+#var_dump($this->repData);
+#die;
+#echo "repData=<pre>".print_r($this->repData,true)."</pre><br />\n";
         foreach ($this->getRepData() as $k=>$row) {
             $this->debug(5, "::getHTMLRepElement(): k=$k, row=<pre>".print_r($row,true)."</pre>");
             #dbg('REP ELEMENT class='.get_class($this).'==>'.$k);
+#if ($dbgcnt++ >= 0) die;
             #if ($k == 'grouptype_id') var_dump($row);
             if (is_object($row) && (method_exists($row, 'getHTML') || method_exists($row, 'getRowMacros'))) {
                 #dbg("OBJECT==>".get_class($row));
@@ -315,14 +336,15 @@ abstract class US_Element {
     public function getDBTable() {
         return $this->_dbTable;
     }
-    public function setDefaults(&$k, $mainFormObj) {
-        $this->_mainFormObj = $mainFormObj;
-    }
-    public function getMainForm() {
-        return $this->_mainFormObj;
-    }
     public function setDBTable($table) {
         $this->_dbTable = $table;
+    }
+    public function initElement(&$k, $parentForm, $mainFormObj) {
+        # DO NOT UNCOMMENT THIS! Having a (circular) reference to the parentForm
+        # and to the top-level form is elegant, but it KILLS performance on load times!
+        # DO NOT UNCOMMENT THIS!
+        #$this->_parentFormObj = $parentForm;
+        #$this->_mainFormObj = $mainFormObj;
     }
     public function getDeleteIfEmpty() {
         return $this->_deleteIfEmpty;
@@ -420,6 +442,9 @@ abstract class US_Element {
         $this->repData = $val;
     }
     public function getRepData() {
+        #dbg("getRepData(): class=".get_class($this)." returning...");
+        #pre_r($this->repData);
+        #if (get_class($this) != 'FormField_TabToC') die;
         return $this->repData;
     }
     public function getRepElement() {
@@ -430,6 +455,16 @@ abstract class US_Element {
     }
     public function getIsDBField() {
         return false; // only FormField and descendants can be DB Fields
+    }
+    public function getElementRefs() {
+        return (array)$this->elementRefs;
+    }
+    public function getElementRef($fieldName) {
+        if (isset($this->elementRefs[$fieldName])) {
+            return $this->elementRefs[$fieldName];
+        } else {
+            return null;
+        }
     }
     private function _getPropsByPrefix($prefix) {
         $props = get_object_vars($this);
