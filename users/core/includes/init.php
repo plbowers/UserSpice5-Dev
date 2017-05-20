@@ -52,6 +52,9 @@ if (!defined('US_ROOT_DIR')) {
     }
 }
 
+# Get a version (set in the variable $user_spice_ver)
+include_once US_ROOT_DIR.'core/includes/version.php';
+
 /*
  * If the site over-rides init.php with a copy in local/includes then include
  * that file and don't continue here.
@@ -94,15 +97,23 @@ function us_classloader($class_name) {
             break;
         }
     }
-    include_once US_ROOT_DIR.'core/Classes/'.$class_name . '.php';
-    include_once US_ROOT_DIR.'local/Classes/'.$class_name . '.php';
+    if (file_exists(US_ROOT_DIR.'core/Classes/'.$class_name.'.php')) {
+        include_once US_ROOT_DIR.'core/Classes/'.$class_name . '.php';
+        if (file_exists(getcwd().'/local/Classes/'.$class_name.'.php')) {
+            include_once getcwd().'/local/Classes/'.$class_name . '.php';
+        } else {
+            include_once US_ROOT_DIR.'local/Classes/'.$class_name . '.php';
+        }
+    }
 }
 
 /*
  * Autoload Facebook and Google APIs/SDKs
  */
-require_once US_ROOT_DIR.'core/social_src/Google/autoload.php';
-require_once US_ROOT_DIR.'core/social_src/Facebook/autoload.php';
+# Replacing these fb- and g-specific autoloads with a generic vendor/autoload.php
+#require_once US_ROOT_DIR.'core/social_src/Google/autoload.php';
+#require_once US_ROOT_DIR.'core/social_src/Facebook/autoload.php';
+require_once US_ROOT_DIR.'resources/vendor/autoload.php';
 
 /*
  * session_start() is placed after the autoloading so that class definitions
@@ -118,9 +129,9 @@ require_once US_ROOT_DIR.'local/config.php';
  * (if you update this, be sure to update $us_tables in install/initdb.php and
  * the corresponding $init_commands there.)
  */
-$us_tables=['addressees', 'audit', 'field_defs', 'groups', 'groups_menus', 'groups_pages', 'groups_roles_users',
-    'groups_users', 'groups_users_raw', 'grouptypes', 'lang', 'menus', 'messages', 'pages', 'profiles',
-    'settings', 'users', 'users_online', 'users_session', ];
+$us_tables=['addressees', 'audit', 'dev_docs', 'field_defs', 'groups', 'groups_menus', 'groups_pages',
+    'groups_roles_users', 'groups_users', 'groups_users_raw', 'grouptypes', 'lang', 'menus', 'messages',
+    'pages', 'profiles', 'settings', 'users', 'users_online', 'users_session', ];
 
 # Prepare $T[] for prefix operations (T=tableArray)
 $prefix = configGet('mysql/prefix', '');
@@ -206,7 +217,9 @@ if (configGet('enable_messages') && $user->isLoggedIn()) {
 }
 
 # Track guests
-new_user_online($user_id);
+if (configGet('track_guest')) {
+    new_user_online($user_id);
+}
 
 /*
  * If user logged in and not verified, then redirect
