@@ -514,7 +514,7 @@ function pathFinder($file, $root=null, $configPathToken=null, $defaultPath=null)
     }
     if (empty($paths)) {
         if (empty($defaultPath)) {
-            $paths = configGet('us_script_path', ['local/', 'core/']);
+            $paths = configGet('us_script_path', [getcwd().'/local/', 'local/', 'core/']);
         } else {
             $paths = $defaultPath;
         }
@@ -626,7 +626,7 @@ function securePage($uri=null) {
     // normal priority: (1) $formName, (2) PHP_SELF, (3) PHP_SELF without US_URL_ROOT
 	if (!$results = getPagerowByName($pages)) {
         bold($uri);
-		bold('<br><br>You must go into the Admin Panel and click the Manage Pages button to add this page to the database. Doing so will make this error go away.');
+		bold(lang('SECURE_PAGE_PAGE_NOT_EXIST'));
 		die();
 	}
 
