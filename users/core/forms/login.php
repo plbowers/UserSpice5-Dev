@@ -23,7 +23,7 @@ $myForm = new Form([
     'recaptcha' => new FormField_ReCaptcha([
         'dbfield' => 'recaptcha',
         'display' => lang('COMPLETE_RECAPTCHA'),
-        'keep_if' => configGet('recaptcha'),
+        'keep_if' => configGet('recaptcha') >= 2,
     ]),
     'remember' => new FormField_Checkbox([
         'dbfield' => 'remember',
@@ -45,7 +45,7 @@ $myForm = new Form([
     'join' => new FormField_ButtonAnchor([
         'dbfield' => 'join',
         'display' => lang('SIGN_UP'),
-        'Link' => 'join.php',
+        'link' => 'join.php',
         'Button_Icon' => 'fa fa-plus-square',
     ]),
     '</div>'."\n",
@@ -62,10 +62,10 @@ $myForm = new Form([
 /*
 If enabled, insert google and facebook auth url generators
 */
-if (configGet('glogin')) {
+if (false && configGet('glogin')) {
 	require_once pathFinder('helpers/glogin.php');
 }
-if (configGet('fblogin')) {
+if (false && configGet('fblogin')) {
 	require_once pathFinder('helpers/fblogin.php');
 }
 
@@ -87,9 +87,3 @@ if (Input::exists()) {
 }
 
 echo $myForm->getHTML(['errors'=>$errors, 'successes'=>$successes]);
-
-if (configGet('recaptcha') == 1) { ?>
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
-<?php
-}
-?>
