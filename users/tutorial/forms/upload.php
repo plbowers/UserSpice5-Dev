@@ -21,6 +21,9 @@ $myForm = new Form([
     'uploadButton' => new FormField_ButtonSubmit([
         'display' => 'Upload',
     ]),
+    'insertButton' => new FormField_ButtonSubmit([
+        'display' => 'Insert',
+    ]),
 ], [
     'dbtable' => 'foo',
     'autoload'=>true,

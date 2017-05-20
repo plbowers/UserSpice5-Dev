@@ -40,8 +40,7 @@ $myForm = new Form([
             ]),
             'dataBar' => new FormField_MultiHidden([
                 'sql' => 'SELECT id, bar, a FROM bar',
-                'field' => 'dataBar',
-                'sql_cols' => ['id', 'bar', 'a'],
+                'hidden_cols' => ['id', 'bar', 'a'],
             ])
         ], [
             'Col_Class' => 'col-xs-12 col-md-6',

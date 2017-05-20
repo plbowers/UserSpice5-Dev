@@ -17,6 +17,7 @@ $myForm = new Form([
 ], [
     'dbtable' => 'foo',
     'autoload'=>true,
+    'autoloadnew'=>true,
     'autosave'=>true,
     'autoshow'=>true,
     'autoredirect'=>false,
