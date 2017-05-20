@@ -407,7 +407,7 @@ dbg("Changing to insert...");
         }
 	}
     public function handle1Opt($name, &$val) {
-        $this->debug(4, "::(FormBase::)handle1Opt($name, ".print_r($val,true)."): Entering");
+        $this->debug(4, "::(BaseForm::)handle1Opt($name, ".print_r($val,true)."): Entering");
         $simpleName = strtolower(str_replace('_', '', $name));
         switch ($simpleName) {
             case 'titletoken':
@@ -685,7 +685,7 @@ dbg("Changing to insert...");
         $this->processFields($recursive, false, false, true);
     }
     public function dbLoadData() {
-        $this->debug(1, "FormBase::dbLoadData(): Entering");
+        $this->debug(1, "BaseForm::dbLoadData(): Entering");
         /*
         dbg("dbLoadData(): STARTING TEST");
         $fieldList = $this->fixFieldList([], true, $this->getDbTable());
@@ -705,7 +705,7 @@ dbg("Changing to insert...");
                     $this->errors[] = lang('SQL_ERROR').' ('.$this->errorString().')';
                 }
                 if ($dbData && !$dbData->error() && $dbData->count() > 0) {
-                    #dbg("FormBase::dbLoadData(): found dbData record");
+                    #dbg("BaseForm::dbLoadData(): found dbData record");
                     #var_dump($opts);
                     #var_dump($dbData->first());
                     $this->setFieldValues($opts['dbtable'], $dbData->first());
@@ -718,7 +718,7 @@ dbg("Changing to insert...");
             }
         }
         #dbg("dbLoadData(): Out of loop, calling processFields");
-        #dbg("FormBase::dbLoadData(): Calling processFields with calcRepData=true");
+        #dbg("BaseForm::dbLoadData(): Calling processFields with calcRepData=true");
         $this->processFields(false, false, true, false); // run calcRepData on any/all relevant fields
         #dbg("dbLoadData(): back from processFields()");
     }
@@ -728,7 +728,7 @@ dbg("Changing to insert...");
             $this->setSaveStatus(self::UPDATE_ERROR);
             return false;
         }
-        $this->debug(1, "FormBase::saveDbData(): Entering");
+        $this->debug(1, "BaseForm::saveDbData(): Entering");
         if ($this->buttonPressed($this->getSaveSingleRowButton(true))) { // was save button clicked?
             if (($status = $this->saveSingleRow()) === self::UPDATE_ERROR) {
                 $this->setSaveStatus($status);
@@ -754,7 +754,7 @@ dbg("Changing to insert...");
 
     # Save data into all single-row tables ('dbtable' option [and optionally 'subtables' options])
     public function saveSingleRow($ignoreValid=false) {
-        $this->debug(2,"FormBase::saveSingleRow(): Entering.");
+        $this->debug(2,"BaseForm::saveSingleRow(): Entering.");
         if (!$ignoreValid && !$this->_validatePassed) {
             $this->errors[] = "DEV ERROR: saveSingleRow() cannot be called without first validating data";
             return false;
@@ -784,7 +784,7 @@ dbg("Changing to insert...");
                 }
             }
             if ($opts['mode'] == 'UPDATE') { // update existing row
-                $this->debug(2,"FormBase::saveSingleRow(): Updating ".$opts['dbtable']);
+                $this->debug(2,"BaseForm::saveSingleRow(): Updating ".$opts['dbtable']);
                 if (($rtn = $this->updateRow($opts)) == self::UPDATE_SUCCESS) {
                     $this->setSaveStatus($rtn);
                     if ($msg = $this->getMessage($opts, 'single', 'update', 'success')) {
@@ -803,7 +803,7 @@ dbg("Changing to insert...");
                     }
                 }
             } else { // $opts['mode'] == 'INSERT' -- insert new row
-                $this->debug(2,"FormBase::saveSingleRow(): Inserting to ".$opts['dbtable']);
+                $this->debug(2,"BaseForm::saveSingleRow(): Inserting to ".$opts['dbtable']);
                 if (($rtn = $this->insertRow($opts)) == self::UPDATE_SUCCESS) {
                     $this->setSaveStatus($rtn);
                     $this->setLastId($opts['dbtable']);
@@ -827,7 +827,7 @@ dbg("Changing to insert...");
         return $this->getSaveStatus();
     }
     public function deleteSingleRow() {
-        $this->debug(2,"FormBase::deleteSingleRow(): Entering.");
+        $this->debug(2,"BaseForm::deleteSingleRow(): Entering.");
         $deleted = $errCount = 0;
         foreach ($this->_allDbTables as &$tableOpts) {
             # If you don't want to enforce referential integrity set 'no_delete' in sub-table options
@@ -1385,7 +1385,7 @@ dbg("Changing to insert...");
         } else {
             # perhaps it's in a FormTab_Contents or other form-section class
             foreach ($this->repData as $k=>$v) {
-                if (is_a($v, 'FormBase') && method_exists($v, 'getField') && ($f = $v->getField($fieldName))) {
+                if (is_a($v, 'BaseForm') && method_exists($v, 'getField') && ($f = $v->getField($fieldName))) {
                     return $f;
                 }
             }
@@ -1713,8 +1713,8 @@ dbg("Changing to insert...");
     # be saved.
     # $args is your own argument (use as a hash to pass multiple)
     # $errors and $successes are the usual - fill them up with messages
-    # If it returns FormBase::UPDATE_SUCCESS or FormBase::UPDATE_NO_CHANGE or
-    # FormBase::UPDATE_ERROR then the Form object WILL NOT SAVE but will simply use
+    # If it returns BaseForm::UPDATE_SUCCESS or BaseForm::UPDATE_NO_CHANGE or
+    # BaseForm::UPDATE_ERROR then the Form object WILL NOT SAVE but will simply use
     # this result.
     # If it returns a negative number then the Form object will continue with the
     # $db->update() or $db->insert().

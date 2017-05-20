@@ -1,5 +1,5 @@
 <?php
-class US_FormTab_Contents extends FormBase {
+class US_FormTab_Contents extends BaseForm {
     public $elementList = [
         'openTab', 'Fields', 'closeTab',
     ];
@@ -10,7 +10,7 @@ class US_FormTab_Contents extends FormBase {
         </div> <!-- tab-content (id={TAB_ID}) -->
         ';
 }
-class US_FormTab_Pane extends FormBase {
+class US_FormTab_Pane extends BaseForm {
     public $elementList = [
         'openTab', 'Fields', 'closeTab',
     ];
@@ -54,22 +54,22 @@ class US_FormTab_Pane extends FormBase {
         $this->MACRO_Tab_Id = $val;
     }
 }
-class US_Form_Form extends FormBase {
+class US_Form_Form extends BaseForm {
     public $elementList = [
         'openForm', 'Fields', 'closeForm',
     ];
 }
-class US_Form_Col extends FormBase {
+class US_Form_Col extends BaseForm {
     public $elementList = [
         'openCol', 'Fields', 'closeCol',
     ];
 }
-class US_Form_Row extends FormBase {
+class US_Form_Row extends BaseForm {
     public $elementList = [
         'openRow', 'Fields', 'closeRow',
     ];
 }
-class US_Form_Panel extends FormBase {
+class US_Form_Panel extends BaseForm {
     public $elementList = [
         // since we are changing the order, maybe just re-use title?
         'openPanel', 'Heading', 'openBody', 'Title', 'Fields', 'closeBody', 'Footing', 'closePanel',
@@ -110,7 +110,7 @@ class US_Form_Panel extends FormBase {
         }
     }
 }
-class US_Form_Well extends FormBase {
+class US_Form_Well extends BaseForm {
     public $elementList = [
         // since we are changing the order, maybe just re-use title?
         'openWell', 'Title', 'Fields', 'closeWell',
