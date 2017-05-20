@@ -293,6 +293,14 @@ class US_DB {
     public function errors() {
         return $this->error();
     }
+    public function checkErrors(&$errors, $fatal=false) {
+        $rtn = $this->errorSetMessage($errors);
+        if ($fatal && $rtn) {
+            resultBlock($errors, $successes); // display any other errors
+            throw new Exception("FATAL SQL ERROR: ".$this->errorString());
+        }
+        return $rtn;
+    }
     public function errorSetMessage(&$errors) {
         if ($this->error()) {
             $errors[] = lang('SQL_ERROR');
