@@ -63,7 +63,7 @@ if (isset($mode) && $mode == 'ROLE') {
 } else {
     $mode = 'GROUP';
     $parentPage = 'admin_groups.php';
-    $currentPage = 'admin_group_new.php';
+    $currentPage = 'admin_group.php';
 }
 
 if (!($group_id = Input::get('id')) || !groupIdExists($group_id)) {
