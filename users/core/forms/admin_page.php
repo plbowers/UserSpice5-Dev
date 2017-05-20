@@ -5,16 +5,17 @@ $parentPage = 'admin_pages.php';
 $pageId = Input::get('id');
 
 //Check if selected pages exist
-if(!pageIdExists($pageId)) {
-  Redirect::to("admin_pages.php"); die();
+if (!pageIdExists($pageId)) {
+    Redirect::to($parentPage);
+    die();
 }
 
 $redirectOpts = [
-    0 => ['id'=>'0', 'name' => lang('USE_DEFAULT_SITE_SETTING')],
-    1 => ['id'=>'1', 'name' => lang('CONTINUE_IN_SAME_PAGE')],
-    2 => ['id'=>'2', 'name' => lang('RETURN_TO_BREADCRUMB_PARENT')],
-    3 => ['id'=>'3', 'name' => lang('REDIRECT_TO_CUSTOM_DESTINATION')],
-    4 => ['id'=>'4', 'name' => lang('CREATE_ANOTHER_ROW')],
+    ['id'=>'0', 'name' => lang('USE_DEFAULT_SITE_SETTING')],
+    ['id'=>'1', 'name' => lang('CONTINUE_IN_SAME_PAGE')],
+    ['id'=>'2', 'name' => lang('RETURN_TO_BREADCRUMB_PARENT')],
+    ['id'=>'3', 'name' => lang('REDIRECT_TO_CUSTOM_DESTINATION')],
+    ['id'=>'4', 'name' => lang('CREATE_ANOTHER_ROW')],
 ];
 $pageList = $db->query("SELECT id, page FROM $T[pages] ORDER BY page")->results();
 array_unshift($pageList, (object)['id'=>null, 'page'=>'(No Parent Page Specified)']);
@@ -90,7 +91,6 @@ $myForm = new Form ([
             'accessRow' => new Form_Row([
                 'remove' => new Form_Panel([
                     'removeGroup' => new FormField_Table([
-                        'field' => 'removeGroup',
                         'table_head_cells' => '<th>'.lang('MARK_TO_DELETE').'</th>'.
                             '<th>'.lang('GROUP').'</th>',
                         'table_data_cells' => '<td>{CHECKBOX_ID}</td>'.
@@ -99,15 +99,23 @@ $myForm = new Form ([
                         'nodata' => '<p>'.lang('NO_GROUP_ACCESS_PAGE').'</p>',
                         'table_class' => 'table-condensed table-hover',
                         'isdbfield' => false,
-                        # repeating data will be loaded below
-                    ])
+                        'sql' => "SELECT gp.id, gp.group_id, g.name, g.short_name
+                                    FROM $T[groups_pages] gp
+                                    JOIN $T[groups] g ON (g.id = gp.group_id)
+                                    WHERE gp.page_id = ?
+                                    ORDER BY g.name, g.short_name, g.id",
+                        'bindvals' => [$pageId],
+                    ], [
+                        'dbtable' => 'groups_pages',
+                        'action' => 'delete',
+                        'msgtoken_success' => 'PAGE_ACCESS_REMOVED',
+                    ]),
                 ], [
                     'head' => '<h4>'.lang('PAGE_DEL_GROUP_ACCESS').'</h4>',
                     'Panel_Class' => 'panel-default col-xs-12 col-sm-6',
                 ]),
                 'add' => new Form_Panel([
                     'addGroup' => new FormField_Table([
-                        'field' => 'addGroup',
                         'table_head_cells' => '<th>'.lang('MARK_TO_ADD').'</th>'.
                             '<th>'.lang('GROUP').'</th>',
                         'table_data_cells' => '<td>{CHECKBOX_ID}</td>'.
@@ -116,7 +124,22 @@ $myForm = new Form ([
                         'nodata' => '<p>'.lang('NO_GROUP_WITHOUT_ACCESS_PAGE').'</p>',
                         'table_class' => 'table-condensed table-hover',
                         'isdbfield' => false,
+                        'sql' => "SELECT id, name, short_name
+                            FROM $T[groups] g
+                            WHERE NOT EXISTS (
+                                SELECT * FROM $T[groups_pages] gp
+                                WHERE gp.group_id = g.id
+                                  AND gp.page_id = ?
+                            )
+                            ORDER BY name, short_name, id",
+                        'bindvals' => [$pageId],
                         # repeating data will be loaded below
+                    ], [
+                        'dbtable' => 'groups_pages',
+                        'action' => 'insert',
+                        'button' => ['save', 'save_and_return'],
+                        'fields' => ['group_id' => '{id}', 'page_id'=>$pageId],
+                        'msgtoken_success' => 'PAGE_ACCESS_ADDED',
                     ])
                 ], [
                     'head' => '<h4>'.lang('PAGE_ADD_GROUP_ACCESS').'</h4>',
@@ -140,19 +163,20 @@ $myForm = new Form ([
     ]),
 ], [
     'dbtable' => 'pages',
-    'autoload' => true,
+    'default' => 'process',
     'Keep_AdminDashBoard' => true,
 ]);
 
+/*
 $pageDetails = fetchPageDetails($pageId); //Fetch information specific to page
-$myForm->setFieldValues($pageDetails);
+$myForm->setFieldValues(null, $pageDetails);
 $myForm->setMacro('Form_Title', lang('ADMIN_PAGE_FORM_TITLE', basename($pageDetails->page)));
 // Update the database from $_POST
 if (Input::exists()) {
 
     // update columns from `pages`
     $myForm->setNewValues($_POST);
-    if ($myForm->updateIfValid($pageId, $errors) == Form::UPDATE_SUCCESS) {
+    if ($myForm->saveDbData($pageId, $errors) == Form::UPDATE_SUCCESS) {
         $successes[] = lang('PAGE_UPDATE_SUCCESSFUL');
         $pageDetails = fetchPageDetails($pageId); //Fetch information specific to page
         #var_dump($pageDetails);
@@ -186,3 +210,4 @@ $groupData = fetchAllGroups();
 $myForm->getField('removeGroup')->setRepData($pageGroups);
 $myForm->getField('addGroup')->setRepData($notPageGroups);
 echo $myForm->getHTML(['errors'=>$errors, 'successes'=>$successes]);
+*/
