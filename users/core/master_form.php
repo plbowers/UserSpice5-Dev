@@ -59,13 +59,6 @@ if (file_exists(US_ROOT_DIR.'local/forms/master_form.php')) {
     exit;
 }
 
-# Read in all initial values, include helpers, classes, config, etc.
-if (file_exists(US_ROOT_DIR.'local/includes/init.php')) {
-    include_once(US_ROOT_DIR.'local/includes/init.php');
-} else {
-    include_once(US_ROOT_DIR.'core/includes/init.php');
-}
-
 # Make sure $formName is set
 if (isset($formName)) {
     $pageName = $formName;
@@ -73,6 +66,14 @@ if (isset($formName)) {
     $pageName = $_SERVER['PHP_SELF'];
     $formName = basename($pageName);
 }
+
+# Read in all initial values, include helpers, classes, config, etc.
+if (file_exists(US_ROOT_DIR.'local/includes/init.php')) {
+    include_once(US_ROOT_DIR.'local/includes/init.php');
+} else {
+    include_once(US_ROOT_DIR.'core/includes/init.php');
+}
+
 # Security - make sure user is allowed to access this page
 if (!securePage($pageName)) {
     $login_response = new StateResponse_DenyNoPerm;
