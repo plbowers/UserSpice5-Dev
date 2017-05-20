@@ -59,8 +59,8 @@ abstract class US_FormField extends Element {
     public $repEmptyAlternateReplacesAll = true;
     public
         $HTML_Pre = '
-            <div class="{DIV_CLASS}"> <!-- type={TYPE} id={FIELD_ID} name={FIELD_NAME} -->
-              <label class="{LABEL_CLASS}" for="{FIELD_ID}">{LABEL_TEXT}
+            <div class="{DIV_CLASS} {EXTRA_OUTER_CLASS}" id="outer-{FIELD_ID}" > <!-- type={TYPE} id={FIELD_ID} name={FIELD_NAME} -->
+              <label class="{LABEL_CLASS}" for="{FIELD_ID}" {ON_CLICK}>{LABEL_TEXT}
               <span class="{HINT_CLASS}" title="{HINT_TEXT}"></span></label>
               <br />',
         $HTML_Input = '
@@ -74,6 +74,7 @@ abstract class US_FormField extends Element {
         $elementList = ['Pre', 'Input', 'Post'];
     public
         $MACRO_Div_Class = 'form-group',
+        $MACRO_Extra_Outer_Class = '',
         $MACRO_Label_Class = 'control-label',
         $MACRO_Label_Text = '',
         $MACRO_Input_Class = 'form-control',
@@ -88,7 +89,8 @@ abstract class US_FormField extends Element {
         $MACRO_Value = '',
         $MACRO_Disabled = '',
         $MACRO_Readonly = '',
-        $MACRO_Page_Index = '';
+        $MACRO_Page_Index = '',
+        $MACRO_On_Click = '';
 
     public function __construct($opts=[], $processor=[]) {
         // We cannot do our initialization here because we need the name of the field
@@ -99,6 +101,8 @@ abstract class US_FormField extends Element {
     public function initFormField($IdxFn='') {
         $opts = $this->_initOpts;
         global $T;
+        #dbg("initFormField($IdxFn): Entering, opts=");
+        #pre_r($opts);
         if ($fn = @$opts['dbfield']) {
             $field_def = $this->useFieldDef($fn); // $fn may be altered by alias
             unset($opts['dbfield']); // don't need anymore
@@ -108,12 +112,9 @@ abstract class US_FormField extends Element {
         } else {
             $fn = $IdxFn; // the index to the array element will also be the field name
             $field_def = $this->useFieldDef($fn); // $fn may be altered by alias
-            #$this->setDefaults($fn);
+            #$this->initElement($fn);
         }
-        #dbg("Checking fn=$fn");
-        #var_dump($opts);
         if ($fn) {
-            #dbg("Setting FieldName to $fn");
             $this->setFieldName($fn);
         }
         if (is_null($this->getPlaceholder())) {
@@ -122,7 +123,7 @@ abstract class US_FormField extends Element {
         if ($this->_processor && !isset($this->_processor['idfield'])) {
             $this->_processor['idfield'] = $fn;
         }
-        parent::__construct($opts);
+        parent::__construct($opts); // misc plus handleOpts()
         # Now handle what we found in $field_def, but don't let
         # values there override what was passed in $opts
         if (isset($opts['display']) || isset($opts['display_lang'])) {
@@ -168,6 +169,12 @@ abstract class US_FormField extends Element {
                 return true;
             case 'fieldid':
                 $this->setFieldId($val);
+                return true;
+            case 'hideable':
+                $this->setMacro('On_Click', 'onclick="$(\'.hide_{FIELD_ID}\').toggle();"');
+                return true;
+            case 'hidden':
+                $this->HTML_Scripts[] = '<script type="text/javascript"> $(".hide_{FIELD_ID}").hide(); </script>';
                 return true;
             case 'postfunc':
             case 'postfunction':
@@ -220,6 +227,9 @@ abstract class US_FormField extends Element {
             case 'importsource':
                 $this->setImportSource($val);
                 return true;
+            case 'extraclass':
+                $this->setMacro('Extra_Outer_Class', $val);
+                return true;
         }
         return parent::handle1Opt($name, $val);
     }
@@ -228,7 +238,7 @@ abstract class US_FormField extends Element {
         $db = DB::getInstance();
         $field_def = $db->queryAll("field_defs", [ 'name' => $fn ])->first(true);
         $dbFieldnm = $fn;
-        if ($field_def) {
+        if ($field_def && $field_def['alias']) {
             $fn = $field_def['alias'];
             #dbg("useFieldDef(): $fn, $dbFieldnm");
         }
@@ -245,7 +255,7 @@ abstract class US_FormField extends Element {
         $this->MACRO_Value = $this->getFieldValue();
         $this->MACRO_Required_Attrib = ($this->getRequired() ? 'required' : '');
         if (!$this->MACRO_Hint_Text && $this->hasValidation()) {
-            $this->MACRO_Hint_Text = $this->getValidator()->describe($this->_fieldName);
+            $this->MACRO_Hint_Text = $this->getValidator()->describe($this->getFieldName());
         }
         $this->MACRO_Hint_Class = $this->getHintClass();
         return parent::getMacros($s, $opts);
@@ -253,13 +263,13 @@ abstract class US_FormField extends Element {
 
     public function calcRepData($recalc=false) {
         static $cnt=1;
-        $this->debug(1, '::calcRepData(): Entering ('.$this->_fieldName.')');
+        $this->debug(1, '::calcRepData(): Entering ('.$this->getFieldName().')');
         if (!$this->isRepeating() || (!$this->repDataIsEmpty() && !$recalc)) {
             # If it's not a repeating-data field or if the repeating data already
             # has something in it then get out...
             return false;
         }
-        $this->debug(2, '::calcRepData(): Continuing '.$this->_fieldName.', count='.$cnt++);
+        $this->debug(2, '::calcRepData(): Continuing '.$this->getFieldName().', count='.$cnt++);
         $rtn = false;
         $repData = [];
         $setRep = false;
@@ -284,7 +294,7 @@ abstract class US_FormField extends Element {
     public function calcRepDataFromImport() {
         $this->debug(2, "calcRepDataFromImport(): Entering");
         if ($fn = $this->getImportField()) {
-            if ($uploadFld = $this->getField($fn)) {
+            if ($uploadFld = $this->getElementRef($fn)) {
                 $fileName = $uploadFld->getFieldValue();
             } else {
                 return false;
@@ -414,7 +424,7 @@ abstract class US_FormField extends Element {
         return (boolean)$this->repData;
     }
     public function describeValidation() {
-        return $this->getValidator()->describe($this->_fieldName);
+        return $this->getValidator()->describe($this->getFieldName());
     }
     public function getHintClass() {
         if ($this->getRequired()) {
@@ -428,9 +438,10 @@ abstract class US_FormField extends Element {
 
     // the key to the __construct hash handed to the field list (1st arg)
     // can initialize both the field name and the display labels
-    public function setDefaults(&$k, $mainFormObj) {
-        $this->debug(1, "::setDefaults($k): Entering");
-        parent::setDefaults($k, $mainFormObj);
+    public function initElement(&$k, $parentFormObj, $mainFormObj) {
+        $this->debug(1, "::initElement($k): Entering");
+        parent::initElement($k, $parentFormObj, $mainFormObj);
+        #dbg("Back from parent::initElement - k=$k");
         $k = $this->initFormField($k); // handle (late) initialization
         $langKey = strtoupper($k);
         if (hasLang($langKey)) {
@@ -458,6 +469,7 @@ abstract class US_FormField extends Element {
     }
     public function setImportField($val) {
         $this->_importField = $val;
+        $this->elementRefs[$val] = null; // "request" a reference to this field from the initElement() function in the parent form
     }
     public function getImportSource() {
         #dbg("getImportSource(): Returning: ".$this->_importSource);
@@ -592,17 +604,18 @@ abstract class US_FormField extends Element {
 	public function setRequired($v){
         $this->debug(2, "::setRequired($v) - Entering");
         if ($valid = $this->getValidator()) {
+            #dbg("setRequired(): Before setRequired fieldname=".$this->getFieldName().", dbfieldname=".$this->getDBFieldName().", valid=");
+            #var_dump($valid);
             $valid->setRequired($this->getFieldName(), $v);
+            #dbg("setRequired(): After setRequired valid=");
+            #var_dump($valid);
         } else {
-            throw new Exception("No validation. Cannot set `required` for field {$this->_fieldName}.");
+            throw new Exception("No validation. Cannot set `required` for field ".$this->getFieldName().".");
         }
 	}
     # <input ... id="THIS-IS-FIELD-ID" ...>
     public function setFieldId($id) {
         $this->_fieldId = $id;
-    }
-    public function getField($fieldName) {
-        return $this->_mainFormObj->getField($fieldName);
     }
     public function getFieldId() {
         # Often developers will not specify the ID since they will just
@@ -653,9 +666,7 @@ abstract class US_FormField extends Element {
         return $this->_fieldNewValue;
     }
     public function setNewValue($val) {
-        if ($this->getIsDBField()) {
-            $this->_fieldNewValue = Input::sanitize($val);
-        }
+        $this->_fieldNewValue = Input::sanitize($val);
     }
 
     # methods related to validation
@@ -677,13 +688,20 @@ abstract class US_FormField extends Element {
         return (boolean)$this->_validateObject;
     }
     public function getValidator($createIfNeeded=true) {
+        #dbg('getValidator(): '.$this->getDBFieldName().' starting with validateObj');
+        #var_dump($this->_validateObject);
         if ($createIfNeeded && !$this->_validateObject) {
-            $this->setValidator(new Validate());
+            #dbg("getValidator() creating");
+            $args = [$this->getDBFieldName() => []];
+            $this->setValidator(new Validate($args));
         } else {
             if (is_array($this->_validateObject)) {
+                #dbg("getValidator() fixing");
                 $this->fixValidator(); // fix (late) if needed
             }
         }
+        #dbg('getValidator(): '.$this->getDBFieldName().' returning validateObj');
+        #var_dump($this->_validateObject);
         return $this->_validateObject;
     }
 
