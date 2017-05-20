@@ -2,7 +2,7 @@
 
 checkToken();
 
-require_once(US_ROOT_DIR.'resources/vendor/autoload.php');
+#require_once(US_ROOT_DIR.'resources/vendor/autoload.php');
 use ZxcvbnPhp\Zxcvbn;
 
 if ($user->isLoggedIn()) {
@@ -11,17 +11,17 @@ if ($user->isLoggedIn()) {
 	$userId = 0;
 }
 
-$id = Input::get('id');
-if ($id==$user->data()->id || empty($id)) {
+$userId = Input::get('id');
+if ($userId==$user->data()->id || empty($userId)) {
 	$displayFullProfile=TRUE;
 	$userData = $user->data();
-    $id = $userData->id;
+    $userId = $userData->id; // display your own
 } else {
     // not your profile - allow editing only if you are admin
 	$displayFullProfile=$user->isAdmin();
-	$userData = $db->queryAll("users", ['id' => $id])->first();
+	$userData = $db->queryAll("users", ['id' => $userId])->first();
 }
-$grav = get_gravatar(strtolower(trim($userData->email)));
+$grav = ($userData->image_url ? $userData->image_url : get_gravatar(strtolower(trim($userData->email))));
 $joinDate = strtotime($userData->join_date);
 $joinDateStr = date(configGet('date_fmt'), $joinDate);
 $zones = DateTimeZone::listIdentifiers();
@@ -66,7 +66,10 @@ $myForm = new Form([
             ]),
             new Form_Col([
                 'users.username' => new FormField_Text([
-                    #'dbname' => 'users.username',
+                    'valid' => [
+                        'action' => 'update',
+                        'update_id' => $userId,
+                    ],
                     'disabled' => !configGet('allow_username_change') || !$displayFullProfile,
                 ]),
                 'users.fname' => new FormField_Text([
@@ -76,6 +79,10 @@ $myForm = new Form([
                     'disabled' => !$displayFullProfile,
                 ]),
                 'users.email' => new FormField_Text([
+                    'valid' => [
+                        'action' => 'update',
+                        'update_id' => $userId,
+                    ],
                     'deleteif' => !$displayFullProfile,
                 ]),
                 'timezone_string' => new FormField_Select([
@@ -84,6 +91,7 @@ $myForm = new Form([
                     'deleteif' => !$displayFullProfile,
                 ]),
                 'bio' => new FormField_Textarea([
+                    'dbtable' => 'profiles',
                     'disabled' => !$displayFullProfile,
                 ]),
                 'save' => new FormField_ButtonSubmit([
@@ -104,7 +112,7 @@ $myForm = new Form([
             'newpass' => new FormField_Password([
                 'display' => lang('NEW_PASSWORD'),
                 'isDbField' => false,
-                'strengthmeter' => true,
+                'strengthmeter' => configGet('min_pw_score'),
             ]),
             'confirmpass' => new FormField_Password([
                 'display' => lang('CONFIRM_NEW_PASSWORD'),
@@ -116,13 +124,21 @@ $myForm = new Form([
             ])
         ], [
             'title' => lang('CHANGE_PW_TAB_TITLE'),
-            'activetab' => Input::get('change_pw'),
+            #'activetab' => Input::get('change_pw'),
             'deleteif' => !$displayFullProfile,
         ]),
     ]),
 ], [
     'dbtable' => 'users',
-    'dbtableid' => $id,
+    'subtables' => [
+        'profiles' => [
+            'sql' => "SELECT id FROM $T[profiles] WHERE user_id = ?",
+            'bindvals' => [ $userId ],
+            'found0' => 'INSERT', // if it's missing just add a new one
+            'insert_fields' => [ 'user_id' => $userId ],
+        ]
+    ],
+    'dbtableid' => $userId,
     'default' => 'processing',
     'autoshow' => false, // can't display until after pw processing
 ]);
@@ -130,7 +146,9 @@ $myForm = new Form([
 if (Input::get('change_pw')) {
     # Validation is done manually because the `Form` class doesn't
     # work well with cross-field validations (like making sure new
-    # pw matches confirm pw)
+    # pw matches confirm pw) and it's too complicated to try to do
+    # conditional required fields (i.e., required if they are trying
+    # to change the password, but not required otherwise)
     $validation = new Validate;
 	$validation->check($_POST,[
 		'curpass' => [
@@ -151,7 +169,7 @@ if (Input::get('change_pw')) {
 	if (!$user->isAdmin() && !$user->comparePassword(Input::get('curpass'),$user->data()->password)) {
 		$errors[]=lang('ACCOUNT_PASSWORD_INVALID');
 	}
-    if ($zxcvbn->passwordStrength('password') < configGet('min_pw_score')) {
+    if (!$user->isAdmin() && $zxcvbn->passwordStrength('password') < configGet('min_pw_score')) {
         $errors[] = lang('PASSWORD_TOO_SIMPLE');
     }
 	if ($validation->passed() && !$errors) {
