@@ -51,7 +51,7 @@ function menuSQL($menuTitle, &$bindVals, $forceAll=false) {
     }
     $sql = "SELECT menus.id, menu_title, label_token, parent,
                 logged_in, config_key,
-                display_order, icon_class,
+                display_order, link_target, icon_class,
                 CONCAT(IF(link <> '', link, pages.page), link_args) AS link
               FROM $T[menus] menus
               JOIN $T[pages] pages ON (pages.id = menus.page_id)
@@ -81,7 +81,7 @@ function menuSQL($menuTitle, &$bindVals, $forceAll=false) {
             UNION
             SELECT menus.id, menu_title, label_token, parent,
                 logged_in, config_key,
-                display_order, icon_class,
+                display_order, link_target, icon_class,
                 CONCAT(link, link_args) AS link
               FROM $T[menus] menus
              WHERE menu_title = ?
@@ -187,9 +187,11 @@ function getMenuHTML($menuTitle, $menuItems, $logo=null, $stub=false) {
     return $html;
 }
 function getMenuItemHTML($menuItem, $level, $stub=false) {
+    $menuText = '<span class="'.$menuItem['icon_class'].'"></span> '.lang($menuItem['label_token']);
+    $target = $menuItem['link_target'] ? 'target="'.$menuItem['link_target'].'"' : '';
     if ($menuItem['children']) {
     	$itemString ='<li class="dropdown">';
-    	$itemString.='<a href="'.$menuItem['link'].'" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><span class="'.$menuItem['icon_class'].'"></span> '.lang($menuItem['label_token']).' <span class="caret"></span></a>';
+    	$itemString.='<a href="'.$menuItem['link'].'" '.$target.' class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">'.$menuText.' <span class="caret"></span></a>';
     	$itemString.='<ul class="dropdown-menu">';
     	foreach ($menuItem['children'] as $childItem) {
     		$itemString .= getMenuItemHTML($childItem, $level+1, $stub);
@@ -200,7 +202,7 @@ function getMenuItemHTML($menuItem, $level, $stub=false) {
         if ($stub) {
         	$itemString='<li><a onclick="alert(\'Would have gone to `'.$menuItem['link'].'`\'); return false;" href="'.$menuItem['link'].'"><span class="'.$menuItem['icon_class'].'"></span> '.lang($menuItem['label_token']).'</a></li>';
         } else {
-        	$itemString='<li><a href="'.$menuItem['link'].'"><span class="'.$menuItem['icon_class'].'"></span> '.lang($menuItem['label_token']).'</a></li>';
+        	$itemString='<li><a href="'.$menuItem['link'].'" '.$target.'>'.$menuText.'</a></li>';
         }
     	return $itemString;
     }
