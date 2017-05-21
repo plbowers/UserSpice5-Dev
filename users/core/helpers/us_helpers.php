@@ -38,6 +38,28 @@ function get_gravatar($email, $s = 120, $d = 'mm', $r = 'pg', $img = false, $att
 	return $url;
 }
 
+# When doing a regex on a pathname we need to make sure that all magic chars are
+# appropriately escaped and we need to make sure that any forward slash can be a
+# back slash and vice versa depending on DIRECTORY_SEPARATOR
+function path2regex ($path, $regex_delimiter='/') {
+    $path = preg_quote($path, $regex_delimiter);
+    if (DIRECTORY_SEPARATOR == '\\') {
+        $find = ['\\\\', '\\/'];
+        $repl = '[\\/\\\\]';
+        // This weird 2-step replacement is necessary because otherwise str_replace
+        // "steps on itself" because the $find is in the $repl.
+        $path = str_replace($find, '{DIRECTORY_SEPARATOR}', $path);
+        $path = str_replace('{DIRECTORY_SEPARATOR}', $repl, $path);
+    }
+    /*
+    else {
+        $find = '\\/';
+        $repl = '\\/'; // unix filenames can have back-slashes that aren't directory separators
+    }
+    */
+    return $path;
+}
+
 //Check if the group has admin privileges
 function groupIsAdmin($id) {
 	$db = DB::getInstance();
