@@ -394,7 +394,7 @@ abstract class US_FormField_Radio extends FormField {
         $HTML_Input = '
             <div class="radio hide_{FIELD_ID}">
 				<label for="{FIELD_ID}-{ID}" class="{LABEL_CLASS}">
-					<input type="{TYPE}" name="{FIELD_NAME}" id="{FIELD_ID}-{ID}" class="{INPUT_CLASS}" value="{ID}">
+					<input type="{TYPE}" name="{FIELD_NAME}" id="{FIELD_ID}-{ID}" value="{ID}">
 					{OPTION_LABEL}
 				</label>
 			</div> <!-- radio -->
