@@ -71,7 +71,6 @@ class US_Form_Row extends BaseForm {
 }
 class US_Form_Panel extends BaseForm {
     public $elementList = [
-        // since we are changing the order, maybe just re-use title?
         'openPanel', 'Heading', 'openBody', 'Title', 'Fields', 'closeBody', 'Footing', 'closePanel',
     ];
     protected $HTML_Head = '',
@@ -95,6 +94,21 @@ class US_Form_Panel extends BaseForm {
         $MACRO_Head_Class = '',
         $MACRO_Foot_Class = '',
         $MACRO_Form_Title = ''; // if null it reads title from pages table which is not usually right for a panel
+    public function handle1Opt($name, &$val) {
+        switch (strtolower(str_replace('_', '', $name))) {
+            case 'head':
+            case 'header':
+            case 'heading':
+                $this->HTML_Head = $val;
+                return true;
+            case 'foot':
+            case 'footer':
+            case 'footing':
+                $this->HTML_Foot = $val;
+                return true;
+        }
+        return parent::handle1Opt($name, $val);
+    }
     public function getHTMLHeading() {
         if ($this->HTML_Head) {
             return '<div class="panel-heading {HEAD_CLASS}">'.$this->HTML_Head.'</div>';
