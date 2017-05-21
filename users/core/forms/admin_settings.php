@@ -21,13 +21,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Check CSRF token
 checkToken();
 
-dbg("mode=$mode");
 $master = $db->query("SELECT * FROM $T[settings] WHERE (user_id IS NULL OR user_id <= 0) AND (group_id IS NULL OR group_id <= 0)")->first();
+$db->errorSetMessage($errors);
 if ($mode == 'SITE' && !Input::get('id')) {
     $_GET['id'] = $master->id;
     $_REQUEST['id'] = $_GET['id'];
 }
-$db->errorSetMessage($errors);
 if (!isset($mode) || !in_array($mode, ['USER', 'GROUP', 'SITE'])) {
     $errors[] = 'DEV ERROR: UNKNOWN mode='.@$mode;
     Redirect::to("Some Other Place - gotta look up the appropriate redirect facility");
@@ -294,12 +293,14 @@ $myForm = new Form([
                     'hint_text' => lang('SETTINGS_UPLOAD_MAX_SIZE_HINT'),
                     'keep_if' => $mode == 'SITE',
                 ]),
+            /* this is edited/used in admin_backup.php rather than here
             'backup_dest' =>
                 new FormField_Text([
                     'display' => lang('SETTINGS_BACKUP_DEST'),
                     'hint_text' => lang('SETTINGS_BACKUP_DEST_HINT'),
                     'keep_if' => $mode == 'SITE',
                 ]),
+            */
             'allow_username_change' =>
                 new FormField_Select([
                     'display' => lang('SETTINGS_ALLOW_USERNAME_CHANGE'),
