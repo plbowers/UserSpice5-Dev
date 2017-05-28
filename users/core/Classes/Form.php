@@ -207,6 +207,7 @@ class US_BaseForm extends Element {
             if (is_object($fld)) {
                 #dbg("initElement($k, ...) (idx=$myOwnIdx)");
                 $fld->initElement($k, $this, $topForm); // $k is by reference and may be renamed
+                #dbg("initElement(): k=$k");
                 if (!$fld->getDeleteMe()) {
                     $newFields[$k] = $fld;
                     foreach ($fld->getElementRefs() as $fldName=>&$fldRef) {
@@ -217,6 +218,7 @@ class US_BaseForm extends Element {
                 $newFields[$k] = $fld;
             }
         }
+        #pre_r($newFields);
         $this->repData = $newFields;
     }
 
@@ -236,7 +238,7 @@ class US_BaseForm extends Element {
             $this->setDBTable($table);
         }
         if (in_array(@$this->_initOpts['default'], ['all', 'processing', 'autoprocess', 'formprocess', 'process'])) {
-            # tableId will be defaulted in dbAutoLoad()
+            # tableId will be defaulted in dbLoadData()
             $this->setDbAutoLoad(true);
             $this->setDbAutoLoadPosted($_POST);
             $this->setDbAutoSave(true);
@@ -298,13 +300,32 @@ class US_BaseForm extends Element {
         }
         $this->_allDbTables[$this->getDbTable()] = [
             'dbtable' => $this->getDbTable(),
+            'realdbtable' => $this->getDbTable(),
             'id' => $this->getDbTableId(),
         ];
         foreach ($this->getSubDbTables() as $tbl=>$opts) {
             #dbg("prepDbTables(): TOP OF LOOP, _allDbTables follows...");
             #pre_r($this->_allDbTables);
             $this->_allDbTables[$tbl] = array_merge((array)@$this->_allDbTables[$tbl], $opts);
-            $this->_allDbTables[$tbl]['dbtable'] = $opts['dbtable'] = $tbl;
+            if (isset($opts['dbalias'])) { // alias is specified, get realdbtable from dbtable or $tbl
+                if (isset($opts['dbtable'])) {
+                    $this->_allDbTables[$tbl]['realdbtable'] = $opts['dbtable'];
+                } else {
+                    $this->_allDbTables[$tbl]['realdbtable'] = $tbl;
+                }
+                $this->_allDbTables[$tbl]['dbtable'] = $opts['dbtable'] = $opts['dbalias'];
+            } elseif (isset($opts['realdbtable'])) { // realdb is specified, get alias (dbtable) from $tbl
+                if (isset($opts['dbtable'])) {
+                    $this->_allDbTables[$tbl]['dbtable'] = $opts['dbtable'];
+                } else {
+                    $this->_allDbTables[$tbl]['dbtable'] = $opts['dbtable'] = $tbl;
+                }
+                $this->_allDbTables[$tbl]['realdbtable'] = $opts['realdbtable'];
+            } elseif (isset($opts['dbtable'])) { # both realdbtable and dbtable are the same from dbtable
+                $this->_allDbTables[$tbl]['realdbtable'] = $this->_allDbTables[$tbl]['dbtable'] = $opts['dbtable'];
+            } else { # neither dbalias nor realdbtable nor dbtable was specified - all are the same from $tbl
+                $this->_allDbTables[$tbl]['realdbtable'] = $this->_allDbTables[$tbl]['dbtable'] = $opts['dbtable'] = $tbl;
+            }
             $this->_allDbTables[$tbl]['id'] = $this->calcSubTableId($opts);
             if (isset($opts['mode'])) {
                 $this->_allDbTables[$tbl]['mode'] = $opts['mode'];
@@ -346,7 +367,6 @@ class US_BaseForm extends Element {
                     }
                     throw new Exception("DEV ERROR: No Row Found for dbtable={$opts['dbtable']}");
                 } elseif ($except == 'INSERT') {
-dbg("Changing to insert...");
                     $opts['mode'] = 'INSERT';
                     return null;
                 }
@@ -696,11 +716,11 @@ dbg("Changing to insert...");
         */
         foreach ($this->_allDbTables as $opts) {
             #var_dump($opts);
-                if ($opts['dbtable'] && !isset($opts['id']) && @$opts['mode'] != 'INSERT') {
+            if ($opts['dbtable'] && !isset($opts['id']) && @$opts['mode'] != 'INSERT') {
                 $opts['id'] = $this->calcSubTableId($opts);
             }
-            if (@$opts['id'] && $opts['dbtable']) {
-                $dbData = $this->_db->findById($opts['dbtable'], $opts['id']);
+            if (@$opts['id'] && $opts['realdbtable']) {
+                $dbData = $this->_db->findById($opts['realdbtable'], $opts['id']);
                 if ($dbData->error()) {
                     $this->errors[] = lang('SQL_ERROR').' ('.$this->errorString().')';
                 }
@@ -1436,14 +1456,17 @@ dbg("Changing to insert...");
             $this->debug(2, "::setFieldValues() - looping with f=$f");
             if (is_array($vals)) {
                 # Hmmm... I don't think we ever get in here...
-                dbg("LET ME KNOW IF I EVER GET IN THIS SECTION OF setFieldValues(). I DON'T THINK WE EVER GET AN ARRAY");
+                dbg("DEVELOPER NOTE: LET ME KNOW IF I EVER GET IN THIS SECTION OF setFieldValues(). I DON'T THINK WE EVER PASS AN ARRAY");
                 if (isset($vals[$f])) {
                     $this->getField($f)->setFieldValue($vals[$f]);
                     $this->debug(3, "::setFieldValues(): using array to set ".print_r($vals[$f],true));
                 }
             } else { # presumably it is an object
                 $curObj = $this->getField($f);
-                #if (is_null($curObj)) { dbg("null f=$f"); }
+                if ($curObj->getDbFieldName()) {
+                    $f = $curObj->getDbFieldName();
+                }
+                if (is_null($curObj)) { dbg("null f=$f"); }
                 // handle nested forms (like for tabs)
                 if (method_exists($curObj, 'setFieldValues')) {
                     $this->debug(3, "::setFieldValues(): using curObj to call setFieldValues()");
@@ -1452,6 +1475,9 @@ dbg("Changing to insert...");
                     #if (!method_exists($curObj, 'setFieldValue')) { dbg( 'class='.get_class($curObj).', parent='.get_parent_class($curObj)); var_dump($curObj); }
                     $this->debug(3, "::setFieldValues(): using curObj to set ".print_r($vals->$f,true));
                     $curObj->setFieldValue($vals->$f);
+                #} else {
+                #    dbg("WHAT ON EARTH?!");
+                #    pre_r($vals);
                 }
             }
         }
@@ -1477,6 +1503,9 @@ dbg("Changing to insert...");
         #pre_r($fieldList);
         foreach ($fieldList as $f) {
             $fld = $this->getField($f);
+            if (method_exists($fld, 'getDbFieldName') && $fld->getDbFieldName()) {
+                $f = $fld->getDbFieldName();
+            }
             if (is_a($fld, 'FormField') && (!$onlyDB || $fld->getIsDBField())) {
                 if (($newVal = $fld->getNewValue()) !== null) {
                     $rtn[$f] = $newVal;
@@ -1568,7 +1597,7 @@ dbg("Changing to insert...");
             $args = $this->getSaveFuncArgs();
             $id = @$tableOpts['id']; // almost certainly blank
             $result = $savefunc($tableOpts['mode'],
-                            $tableOpts['dbtable'],
+                            $tableOpts['realdbtable'],
                             $id,
                             $fields,
                             $args,
@@ -1588,7 +1617,7 @@ dbg("Changing to insert...");
             return self::UPDATE_NO_CHANGE;
         }
         #pre_r($fields);
-        if ($this->_db->insert($tableOpts['dbtable'], $fields)) {
+        if ($this->_db->insert($tableOpts['realdbtable'], $fields)) {
             $tableOpts['id'] = $this->_db->lastId(); // set to id of newly inserted record
             return self::UPDATE_SUCCESS;
         } else {
@@ -1608,7 +1637,7 @@ dbg("Changing to insert...");
         if ($func = $this->getSaveFunc()) {
             $args = $this->getSaveFuncArgs();
             $result = $func($tableOpts['mode'],
-                            $tableOpts['dbtable'],
+                            $tableOpts['realdbtable'],
                             $tableOpts['id'],
                             $fields,
                             $args,
@@ -1624,7 +1653,7 @@ dbg("Changing to insert...");
         if (!$fields) {
             return self::UPDATE_NO_CHANGE; // means no error, but no update occurred
         }
-        if ($this->_db->update($tableOpts['dbtable'], $tableOpts['id'], $fields)) {
+        if ($this->_db->update($tableOpts['realdbtable'], $tableOpts['id'], $fields)) {
             #dbg("updateRow(): SUCCESS");
             if ($this->_db->count() > 0) {
                 return self::UPDATE_SUCCESS; // means update occurred
@@ -1738,7 +1767,7 @@ dbg("Changing to insert...");
     # The valid function is called immediately prior to engaging the validation
     # objects' Validate::check() function.
     #   validFunc($mode=[INSERT|UPDATE], $id, &$fieldList, &$data, $args, &$errors)
-    # If inserting then $id==null.
+    # If inserting then $id==null (or just ignore it).
     # $fieldList and/or $data can be a pass by reference, changing them as needed.
     # $fieldList is the list of fields [[$fieldName => $fieldObject],[...]...] which
     #   will be traversed to call $fieldObject->dataIsValid($data) on it.
