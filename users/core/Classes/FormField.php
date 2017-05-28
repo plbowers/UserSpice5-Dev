@@ -98,24 +98,32 @@ abstract class US_FormField extends Element {
         $this->_initOpts = $opts;
         $this->_processor = $processor;
     }
-    public function initFormField($IdxFn='') {
+    public function initFormField($myIdx='') {
         $opts = $this->_initOpts;
         global $T;
-        #dbg("initFormField($IdxFn): Entering, opts=");
+        #dbg("initFormField($myIdx): Entering, opts=");
         #pre_r($opts);
-        if ($fn = @$opts['dbfield']) {
-            $field_def = $this->useFieldDef($fn); // $fn may be altered by alias
+        if ($dbField = @$opts['dbfield']) {
+            if ($alias = @$opts['field']) {
+                $alias = $opts['field'];
+            } elseif (!is_numeric($myIdx)) {
+                $alias = $myIdx;
+            } else {
+                $alias = $dbField;
+            }
+            #dbg("initFormField(): before myIdx=$myIdx, alias=$alias, dbField=$dbField");
+            $field_def = $this->useFieldDef($alias, $dbField); // $alias may be altered by 'alias' option
+            #dbg("initFormField(): after alias=$alias");
             unset($opts['dbfield']); // don't need anymore
-        } elseif ($fn = @$opts['field']) {
+            unset($opts['field']);   // don't need anymore
+        } elseif ($alias = @$opts['field']) { // specifying 'field' is like alias
+            $this->setFieldName($alias);
             unset($opts['field']); // don't need anymore
             $field_def = []; // no field-def to work with
-        } else {
-            $fn = $IdxFn; // the index to the array element will also be the field name
-            $field_def = $this->useFieldDef($fn); // $fn may be altered by alias
-            #$this->initElement($fn);
-        }
-        if ($fn) {
-            $this->setFieldName($fn);
+        } else { // gotta be both alias and dbname was specified by index
+            $alias = $dbName = $myIdx; // the index to the array element will also be the field name and dbName
+            $field_def = $this->useFieldDef($alias, $dbName); // $alias may be altered by alias
+            #$this->initElement($alias);
         }
         if (is_null($this->getPlaceholder())) {
             $this->setPlaceholder($this->getFieldLabel());
@@ -133,7 +141,7 @@ abstract class US_FormField extends Element {
         # This handles only opts that are in $field_def but not in $opts
         # (since $opts was already handled above in the parent::__construct($opts) call)
         $this->handleOpts(array_diff_key((array)$field_def, $opts));
-        return $fn;
+        return $alias;
     }
 
     public function handle1Opt($name, &$val) {
@@ -234,15 +242,17 @@ abstract class US_FormField extends Element {
         return parent::handle1Opt($name, $val);
     }
 
-    public function useFieldDef(&$fn) {
+    public function useFieldDef(&$fn, $dbFieldName) {
         $db = DB::getInstance();
         $field_def = $db->queryAll("field_defs", [ 'name' => $fn ])->first(true);
-        $dbFieldnm = $fn;
+        if (!$dbFieldName) {
+            $dbFieldName = $fn;
+        }
         if ($field_def && $field_def['alias']) {
             $fn = $field_def['alias'];
-            #dbg("useFieldDef(): $fn, $dbFieldnm");
+            #dbg("useFieldDef(): $fn, $dbFieldName");
         }
-        $this->setDBFieldName($dbFieldnm);
+        $this->setDBFieldName($dbFieldName);
         $this->setFieldName($fn);
         return $field_def;
     }
