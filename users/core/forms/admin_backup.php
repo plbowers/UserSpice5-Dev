@@ -119,7 +119,7 @@ $myForm = new Form([
         ]),
     ], [
         'head' => lang('ADMIN_BACKUP_EXISTING_BACKUPS', (Input::get('backup_dest') ? : configGet('backup_dest'))),
-    ])
+    ]),
 ], [
     'dbtable' => 'settings',
     'default' => 'process',
