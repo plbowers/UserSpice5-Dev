@@ -22,6 +22,7 @@ class Form extends US_Form {
                 'keepif' => $editTutorDocs,
             ]),
             'source_code' => new FormField_Textarea([
+                'isdbfield' => false,
                 'display' => lang('TUTORIAL_SOURCE_CODE', $formName),
                 'value' => highlight_file(pathFinder($formName, '', 'forms_path'), true),
                 'readonly' => true,
